@@ -8,6 +8,7 @@ const credentials = require('./credentials')
 const cookieParser = require('cookie-parser')
 const expressSession = require('express-session')
 const flashMiddleware = require('./lib/middleware/flash')
+const az = require('az')
 
 const app = express()
 
@@ -56,6 +57,9 @@ app.post('/api/vacation-photo-contest/:year/:month', (req, res) => {
 })
 
 app.get('/keywords', handlers.keywords)
+app.post('/keywords', (req, res, next) => {
+    console.log(az.Tokens(req.body.keywords))
+})
 
 app.use(handlers.NotFound)
 app.use(handlers.ServerError)
