@@ -1,68 +1,35 @@
 const express = require('express')
-const expressHandlebars = require('express-handlebars')
-const bodyParser = require('body-parser')
-const handlers = require('./lib/handlers')
-const weatherMiddleware = require('./lib/middleware/weather')
-const multiparty = require('multiparty')
-const credentials = require('./credentials')
-const cookieParser = require('cookie-parser')
-const expressSession = require('express-session')
-const flashMiddleware = require('./lib/middleware/flash')
-const az = require('az')
+const createError = require('http-errors')
+const path = require('path');
+
+const searchRouter = require('./components/search/searchRouter.js')
 
 const app = express()
 
-app.engine('handlebars', expressHandlebars.engine({
-    defaultLyout: 'main',
-    helpers: {
-        section: function(name, options) {
-            if (!this._sections) this._sections = {}
-            this._sections[name] = options.fn(this)
-            return null
-        },
-    },
-}))
-app.set('view engine', 'handlebars')
+app.set('views', path.join(__dirname, 'components'))
+app.set('view engine', 'pug')
 
 const port = process.env.PORT || 3000
 
-app.use(bodyParser.urlencoded({ extended: true }))
-app.use(bodyParser.json())
-app.use(express.static(__dirname + '/public'))
-app.use(cookieParser(credentials.cookieSecret))
-app.use(expressSession({
-    resave: false,
-    saveUninitialized: false,
-    secret: credentials.cookieSecret,
-}))
-app.use(flashMiddleware)
+app.use(express.static(path.join(__dirname, 'public')))
 
-app.get('/', weatherMiddleware, handlers.home)
+app.use('/search', searchRouter)
 
-app.get('/about', handlers.about)
-
-app.get('/headers', handlers.headers)
-
-app.get('/newsletter-signup', handlers.newsletterSignup)
-app.post('/newsletter-signup/process', handlers.newsletterSignupProcess)
-
-
-app.get('/contest/vacation-photo', handlers.vacationPhoto)
-app.post('/api/vacation-photo-contest/:year/:month', (req, res) => {
-    const form = new multiparty.Form()
-    form.parse(req, (err, fields, files) => {
-      if(err) return handlers.ServerError(req, res, err.message)
-      handlers.api.vacationPhotoContest(req, res, fields, files)
-    })
+app.use(function(req,res,next){
+    next(createError(404, 'NotFound'))
 })
 
-app.get('/keywords', handlers.keywords)
-app.post('/keywords', (req, res, next) => {
-    console.log(az.Tokens(req.body.keywords))
-})
+app.use(function(err,req,res, next) {
 
-app.use(handlers.NotFound)
-app.use(handlers.ServerError)
+
+    console.error(err)
+    res.locals.error = err.status || 500;
+    res.locals.message = err.message || 'ServerError';
+    res.status(err.status || 500);
+    //console.log(res.status)
+    res.render('../views/error.pug')
+
+})
 
 app.listen(port, () => console.log('express started' + `on ${port}` + 'press ctrl+c'))
 

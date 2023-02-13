@@ -1,5 +1,5 @@
 {
-  "name": "letsnode",
+  "name": "search",
   "version": "1.0.0",
   "description": "",
   "main": "one.js",
@@ -10,14 +10,10 @@
   "license": "ISC",
   "dependencies": {
     "az": "^0.2.3",
-    "body-parser": "^1.20.0",
-    "cookie-parser": "^1.4.6",
-    "cookieparser": "^0.1.0",
     "express": "^4.18.1",
-    "express-handlebars": "^6.0.6",
-    "express-session": "^1.17.3",
+    "http-errors": "^2.0.0",
     "mnemonist": "^0.39.2",
-    "multiparty": "^4.2.3",
-    "nodemon": "^2.0.16"
+    "nodemon": "^2.0.16",
+    "pug": "^3.0.2"
   }
 }
