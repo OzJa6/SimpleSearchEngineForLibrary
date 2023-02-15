@@ -11,7 +11,7 @@ app.set('view engine', 'pug')
 
 const port = process.env.PORT || 3000
 
-app.use(express.static(path.join(__dirname, 'public')))
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/search', searchRouter)
 
@@ -26,7 +26,6 @@ app.use(function(err,req,res, next) {
     res.locals.error = err.status || 500;
     res.locals.message = err.message || 'ServerError';
     res.status(err.status || 500);
-    //console.log(res.status)
     res.render('../views/error.pug')
 
 })

@@ -31,19 +31,12 @@ module.exports.getSearch = async (req, res, next) => {
 
 module.exports.postSearch = (req, res) => {
     try {
-        const name = req.body.name || ''
-        var keywords = name.split(',')
+        
+        
 
         var docarray = new Array();
         var index = new invertedIndex()
 
-        // var prom = new Promise((resolve, reject) => {
-        //     setTimeout(() => resolve("done"), 1000);
-        // })
-        // prom.then(
-        //     result => console.log("ya"),
-        //     error => console.log('meh')
-        // )
 
         let promisesDocs = docs.map((doc) => {
             return new Promise((resolve, reject) => {
@@ -66,12 +59,6 @@ module.exports.postSearch = (req, res) => {
         //затем сделать значимым словам обратный индекс
         //КОММЕНТ//
 
-
-        // let promisesArrivals = data.arrivals.map((arrival) => helper.replaceLink(arrival.WEB_FACE_OF_BOOK).then(result => {
-        //     arrival.WEB_FACE_OF_BOOK = result;
-        //     return arrival;
-        // }));
-        // data.arrivals = await Promise.all(promisesArrivals);
         res.status(200).json({ status: 'ok' });
     }
     catch (err) {
