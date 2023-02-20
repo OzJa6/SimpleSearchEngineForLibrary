@@ -3,6 +3,9 @@
 const az = require('az')
 const invertedIndex = require('mnemonist/inverted-index')
 const createError = require('http-errors')
+const fs = require('fs')
+const { resolve } = require('path')
+const { rejects } = require('assert')
 
 var docs = [
     'лекции по математической теории устойчивости',
@@ -29,58 +32,86 @@ module.exports.getSearch = async (req, res, next) => {
     }
 }
 
-module.exports.postSearch = (req, res) => {
+module.exports.postSearch = async (req, res) => {
     try {
-        
-        
-
-        var docarray = new Array();
         var index = new invertedIndex()
-
-
-        let promisesDocs = docs.map((doc) => {
-            return new Promise((resolve, reject) => {
-                let tokens = az.Tokens(doc).done(['SPACE', 'PUNCT'], true)
-
-                az.Morph.init(() => {
-                    let buff = new Array();
-                    tokens.map((token) => {
-                        buff.push(az.Morph(token.toString())[0].normalize(true).word)
-                    });
-                    docarray.push(buff)
-                    console.log(docarray);
-                })
-
-            })
-        })
+        let obj = {
+            "RECORD_ID": 82151,
+            "TITLE": "Точка опоры",
+            "PUBLISHERS": "Педагогика",
+            "YEAR_OF_PUBLISHING": "1987",
+            "AUTHORS": "Шаталов В. Ф."
+        }
+        await extractWords(obj);
+        console.log(obj)
         //КОММЕНТ//
         //полулили массивы нормализованных слов для каждого названия.
         //теперь нужно сделать им TF-IDF
         //затем сделать значимым словам обратный индекс
         //КОММЕНТ//
-
+        let file = await readJson("j.json");
         res.status(200).json({ status: 'ok' });
     }
     catch (err) {
         console.log(err);
         res.status(500).json({ status: 'bad' });
     }
-
-
-
-
-
 }
 
-function BuffAdd(buff) {
-    return new Promise((resolve, reject) => {
-        try {
-            function fc() { buff.push('apple') }
-            fc.then(() => resolve('yaaa'));
-        }
-        catch (err) { reject(err) }
+async function readJson(path) {
+    let fileContent = fs.readFileSync(path, 'utf-8')
+    let json = await JSON.parse(fileContent)
+    return json;
+}
+
+async function WordCount(doc, word) {
+    return doc.reduce((accumulator, documentWord) => {
+        if (documentWord == word)
+            accumulator++;
+    }, 0)
+}
+
+
+//КОММЕНТ//
+//полулили массивы нормализованных слов для каждого названия.
+//теперь нужно сделать им TF-IDF
+//затем сделать значимым словам обратный индекс
+//КОММЕНТ//
+async function extractWords(objToExtract) {
+    var docarray = new Array();
+    // let promisesDocs = docs.map((doc) => {
+    //     return new Promise((resolve, reject) => {
+    //         let tokens = az.Tokens(doc).done(['SPACE', 'PUNCT'], true)
+
+    //         az.Morph.init(() => {
+    //             let buff = new Array();
+    //             tokens.map((token) => {
+    //                 buff.push(az.Morph(token.toString())[0].normalize(true).word)
+    //             });
+    //             docarray.push(buff)
+    //             console.log(docarray);
+    //         })
+
+    //     })
+    // })
+
+    return await new Promise((resolve, reject) => {
+        let tokens = az.Tokens(objToExtract.TITLE).done(['SPACE', 'PUNCT'], true)
+
+        az.Morph.init(() => {
+            let buff = new Array();
+            tokens.map((token) => {
+                docarray.push(az.Morph(token.toString())[0].normalize(true).word)
+            });
+            //docarray.push(buff)
+            console.log(docarray);
+        })
+        objToExtract.TITLE=docarray
     })
+
 }
+
+
 //console.log(docarray)
 
 // az.Morph.init(() => {

@@ -1,0 +1,18 @@
+{
+    "SELECT * FROM QUICKR_INFO qi WHERE RECORD_ID <= 100000": [
+        {
+            "RECORD_ID" : 0,
+            "TITLE" : "Положение о службе лабораторного контроля Росавтодора",
+            "PUBLISHERS" : "Информавтодор",
+            "YEAR_OF_PUBLISHING" : "2002",
+            "AUTHORS" : "М-во трансп. Рос. Федерации, РОСАВТОДОР"
+        },
+        {
+            "RECORD_ID" : 82151,
+            "TITLE" : "Точка опоры",
+            "PUBLISHERS" : "Педагогика",
+            "YEAR_OF_PUBLISHING" : "1987",
+            "AUTHORS" : "Шаталов В. Ф."
+        }
+    ]
+}
