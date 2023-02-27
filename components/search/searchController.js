@@ -35,36 +35,15 @@ module.exports.getSearch = async (req, res, next) => {
 module.exports.postSearch = async (req, res) => {
     try {
         var index = new invertedIndex()
-        let obj = {
-            "RECORD_ID": 82151,
-            "TITLE": "Точка опоры",
-            "PUBLISHERS": "Педагогика",
-            "YEAR_OF_PUBLISHING": "1987",
-            "AUTHORS": "Шаталов В. Ф."
-        }
 
-        // var docarray = new Array();
+        let array = await getRecordsArray(await readJson("j.json"));
 
-        // let tokens = az.Tokens(obj.TITLE).done(['SPACE', 'PUNCT'], true)
-
-        // az.Morph.init(() => {
-        //     tokens.map((token) => {
-        //         docarray.push(az.Morph(token.toString())[0].normalize(true).word)
-        //     });
-        //     // console.log(docarray);
-        //     obj.TITLE = docarray
-        //     console.log(obj)
-        // })
-        await extractWords(obj)
+        array = await Promise.all(array.map(async(obj) => {
+            await extractWords(obj);
+        }))
 
 
-        console.log(obj)
-        //КОММЕНТ//
-        //полулили массивы нормализованных слов для каждого названия.
-        //теперь нужно сделать им TF-IDF
-        //затем сделать значимым словам обратный индекс
-        //КОММЕНТ//
-        //let file = await readJson("j.json");
+        console.log(array)
         res.status(200).json({ status: 'ok' });
     }
     catch (err) {
@@ -77,6 +56,12 @@ async function readJson(path) {
     let fileContent = fs.readFileSync(path, 'utf-8')
     let json = await JSON.parse(fileContent)
     return json;
+}
+
+async function getRecordsArray(obj) {
+    for (let key in obj) {
+        return obj[key]
+    }
 }
 
 async function WordCount(doc, word) {
