@@ -42,14 +42,29 @@ module.exports.postSearch = async (req, res) => {
             "YEAR_OF_PUBLISHING": "1987",
             "AUTHORS": "Шаталов В. Ф."
         }
-        await extractWords(obj);
+
+        // var docarray = new Array();
+
+        // let tokens = az.Tokens(obj.TITLE).done(['SPACE', 'PUNCT'], true)
+
+        // az.Morph.init(() => {
+        //     tokens.map((token) => {
+        //         docarray.push(az.Morph(token.toString())[0].normalize(true).word)
+        //     });
+        //     // console.log(docarray);
+        //     obj.TITLE = docarray
+        //     console.log(obj)
+        // })
+        await extractWords(obj)
+
+
         console.log(obj)
         //КОММЕНТ//
         //полулили массивы нормализованных слов для каждого названия.
         //теперь нужно сделать им TF-IDF
         //затем сделать значимым словам обратный индекс
         //КОММЕНТ//
-        let file = await readJson("j.json");
+        //let file = await readJson("j.json");
         res.status(200).json({ status: 'ok' });
     }
     catch (err) {
@@ -71,93 +86,29 @@ async function WordCount(doc, word) {
     }, 0)
 }
 
+/**
+ * Обертка в промис колбека для az.morph
+ * @param {object} objToExtract - объект с полями TITLE и AUTHORS, слова в которых будут разделены и нормализованы(приведены в начальную форму)
+ * @returns Promise: resolve нормализованный объект
+ */
 
-//КОММЕНТ//
-//полулили массивы нормализованных слов для каждого названия.
-//теперь нужно сделать им TF-IDF
-//затем сделать значимым словам обратный индекс
-//КОММЕНТ//
 async function extractWords(objToExtract) {
     var docarray = new Array();
-    // let promisesDocs = docs.map((doc) => {
-    //     return new Promise((resolve, reject) => {
-    //         let tokens = az.Tokens(doc).done(['SPACE', 'PUNCT'], true)
 
-    //         az.Morph.init(() => {
-    //             let buff = new Array();
-    //             tokens.map((token) => {
-    //                 buff.push(az.Morph(token.toString())[0].normalize(true).word)
-    //             });
-    //             docarray.push(buff)
-    //             console.log(docarray);
-    //         })
+    let tokens = az.Tokens(objToExtract.TITLE).done(['SPACE', 'PUNCT'], true)
 
-    //     })
-    // })
-
-    return await new Promise((resolve, reject) => {
-        let tokens = az.Tokens(objToExtract.TITLE).done(['SPACE', 'PUNCT'], true)
-
-        az.Morph.init(() => {
-            let buff = new Array();
-            tokens.map((token) => {
-                docarray.push(az.Morph(token.toString())[0].normalize(true).word)
-            });
-            //docarray.push(buff)
-            console.log(docarray);
-        })
-        objToExtract.TITLE=docarray
+    return new Promise((resolve, reject) => {
+        try {
+            az.Morph.init(() => {
+                tokens.map((token) => {
+                    docarray.push(az.Morph(token.toString())[0].normalize(true).word)
+                });
+                resolve(objToExtract.TITLE = docarray)
+            })
+        }
+        catch (err) {
+            reject(err)
+        }
     })
 
 }
-
-
-//console.log(docarray)
-
-// az.Morph.init(() => {
-//     tokens.forEach(token => {
-//         console.log(az.Morph(token.    toString())[0].normalize(true))
-//     });
-// })
-
-
-
-
-
-
-// keywords.forEach(keyword => {
-//     //console.log(keywords)
-//     tokens = az.Tokens(keyword).done(['SPACE', 'PUNCT'], true )
-//     // console.log(tokens[0].source.substring(tokens[0].st, tokens[0].st + tokens[0].length))
-//     tokens.forEach(token => {
-//         // buff.push(token.source.substring(token.st, token.st + token.length))
-//     })
-//     index.add()
-
-// });
-
-
-
-
-//  docarray = docs.map((doc) => {
-//     var tokens = az.Tokens(doc).done(['SPACE', 'PUNCT'], true )
-//     //console.log(tokens)
-
-
-//     az.Morph.init(async() => {
-//         //console.log(az.Morph(tokens[0].toString()))
-
-//         tokens.map((token) => {
-//             try{
-//                 buff.push(az.Morph(token.toString())[0].normalize(true).word)
-//             }
-//             catch (err) {console.log(err)}
-//             docarray.push(buff)
-//             buff.map(() => buff.shift)
-//             //console.log(az.Morph(token.toString())[0].normalize(true).word)
-//         });
-//     })
-//     docarray.push(buff)
-//     console.log(buff)
-//     buff.map(() => buff.shift)
-//})
