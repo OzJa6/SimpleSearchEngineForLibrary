@@ -36,12 +36,13 @@ module.exports.postSearch = async (req, res) => {
     try {
         var index = new invertedIndex()
 
-        let array = await getRecordsArray(await readJson("j.json"));
+        let array = await prepareRecords("QUICKR_INFO_202302171551.json")
+//todo 
+//Error: Please call Az.Morph.init() before using this module.
+//at Object.Morph (D:\git\search\node_modules\az\dist\az.js:665:13)
+//at D:\git\search\components\search\searchController.js:94:40
 
-        array = await Promise.all(array.map(async(obj) => {
-            await extractWords(obj);
-        }))
-
+//ошибкба в браузере!!!!!!!!!!!!
 
         console.log(array)
         res.status(200).json({ status: 'ok' });
@@ -60,8 +61,17 @@ async function readJson(path) {
 
 async function getRecordsArray(obj) {
     for (let key in obj) {
-        return obj[key]
+        return obj[key];
     }
+}
+
+async function prepareRecords(path) {
+    let array = new Array()
+    await Promise.all((await getRecordsArray(await readJson(path))).map(async (obj) => {
+        await extractWords(obj);
+        array.push(obj)
+    }))
+    return array;
 }
 
 async function WordCount(doc, word) {
@@ -78,7 +88,7 @@ async function WordCount(doc, word) {
  */
 
 async function extractWords(objToExtract) {
-    var docarray = new Array();
+    var wordsArray = new Array();
 
     let tokens = az.Tokens(objToExtract.TITLE).done(['SPACE', 'PUNCT'], true)
 
@@ -86,9 +96,9 @@ async function extractWords(objToExtract) {
         try {
             az.Morph.init(() => {
                 tokens.map((token) => {
-                    docarray.push(az.Morph(token.toString())[0].normalize(true).word)
+                    wordsArray.push(az.Morph(token.toString())[0].normalize(true).word)
                 });
-                resolve(objToExtract.TITLE = docarray)
+                resolve(objToExtract.TITLE = wordsArray)
             })
         }
         catch (err) {
