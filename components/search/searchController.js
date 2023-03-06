@@ -4,22 +4,6 @@ const az = require('az')
 const invertedIndex = require('mnemonist/inverted-index')
 const createError = require('http-errors')
 const fs = require('fs')
-const { resolve } = require('path')
-const { rejects } = require('assert')
-
-var docs = [
-    'лекции по математической теории устойчивости',
-    'сборник задач по математическому анализу',
-
-]
-
-//var tokens = az.Tokens(name).done(['SPACE'], true )
-
-// az.Morph.init(() => {
-//     tokens.forEach(token => {
-//         console.log(az.Morph(token.    toString())[0].normalize(true))
-//     });
-// })
 
 module.exports.getSearch = async (req, res, next) => {
     try {
@@ -95,10 +79,10 @@ async function extractWords(objToExtract) {
     return new Promise((resolve, reject) => {
         try {
             az.Morph.init(() => {
-                tokens.map((token) => {
+                tokens.map((token) => {//отдельная функция, if resolve (true)
                     wordsArray.push(az.Morph(token.toString())[0].normalize(true).word)
                 });
-                resolve(objToExtract.TITLE = wordsArray)
+                resolve(objToExtract.TITLE = wordsArray)//resolve (true)
             })
         }
         catch (err) {
