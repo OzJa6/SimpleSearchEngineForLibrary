@@ -1,10 +1,13 @@
 'use strict'
 
-const az = require('az')
-const invertedIndex = require('mnemonist/inverted-index')
-const createError = require('http-errors')
-const fs = require('fs')
+const az = require('az');
+const createError = require('http-errors');
+const fs = require('fs');
 
+const searchModel = require('./searchModel');
+
+const pattern1 = /[А-Яа-я]{1,15}-$/
+const pattern2 = /[A-Za-zА-Яа-я]{1,15}-[0-9]{1,5}$/
 module.exports.getSearch = async (req, res, next) => {
     try {
         res.render('./search/views/search.pug', {
@@ -18,17 +21,21 @@ module.exports.getSearch = async (req, res, next) => {
 
 module.exports.postSearch = async (req, res) => {
     try {
-        var index = new invertedIndex()
+        let array = await prepareRecords("QUICKR_INFO_202302171551.json", 200)
+        let invertedIndex = await createInvertedIndexArray(array)
+        let idf = await calcIDF(invertedIndex,array.length)
 
-        let array = await prepareRecords("QUICKR_INFO_202302171551.json")
-//todo 
-//Error: Please call Az.Morph.init() before using this module.
-//at Object.Morph (D:\git\search\node_modules\az\dist\az.js:665:13)
-//at D:\git\search\components\search\searchController.js:94:40
+        
 
-//ошибкба в браузере!!!!!!!!!!!!
+        /**
+         * TODO:
+         * 1)записать в монгу каждый элемент массива как отдельный документ.
+         * -----2)написать процедуру проверки айдишников записей если книга выведена из оборота.
+         * 3)написать обработчик поискового запроса
+         * 4)ранжирования ответа
+         */
 
-        console.log(array)
+        console.log(idf)
         res.status(200).json({ status: 'ok' });
     }
     catch (err) {
@@ -37,32 +44,32 @@ module.exports.postSearch = async (req, res) => {
     }
 }
 
+async function d(path) {
+    let array = await prepareRecords(path)
+    let invertedIndex = await createInvertedIndexArray(array)
+    let idf = await calcIDF(invertedIndex,array.length)
+}
+
 async function readJson(path) {
     let fileContent = fs.readFileSync(path, 'utf-8')
     let json = await JSON.parse(fileContent)
-    return json;
+    return Object.values(json)[0];
 }
 
-async function getRecordsArray(obj) {
-    for (let key in obj) {
-        return obj[key];
-    }
-}
+function prepareRecords(path) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let chunkArray = await readJson(path);
+            az.Morph.init(async () => {
+                const chunkArrayPromises = chunkArray.map((record) => extractWords(record))
+                const resolvedapromises = await Promise.all(chunkArrayPromises)
+                resolve(resolvedapromises);
+            })
+        } catch (error) {
+            reject(error)
+        }
 
-async function prepareRecords(path) {
-    let array = new Array()
-    await Promise.all((await getRecordsArray(await readJson(path))).map(async (obj) => {
-        await extractWords(obj);
-        array.push(obj)
-    }))
-    return array;
-}
-
-async function WordCount(doc, word) {
-    return doc.reduce((accumulator, documentWord) => {
-        if (documentWord == word)
-            accumulator++;
-    }, 0)
+    })
 }
 
 /**
@@ -71,23 +78,106 @@ async function WordCount(doc, word) {
  * @returns Promise: resolve нормализованный объект
  */
 
-async function extractWords(objToExtract) {
-    var wordsArray = new Array();
-
-    let tokens = az.Tokens(objToExtract.TITLE).done(['SPACE', 'PUNCT'], true)
-
+function extractWords(objToExtract) {
     return new Promise((resolve, reject) => {
         try {
-            az.Morph.init(() => {
-                tokens.map((token) => {//отдельная функция, if resolve (true)
+            var wordsArray = new Array();
+
+            let tokens = az.Tokens(objToExtract.TITLE).done(['SPACE', 'PUNCT'], true)
+
+            for (let i = 0; i < tokens.length; i++) {
+                //обработка ошибок ввода типа "планово- экономический" вместо "планово-экономический"
+                if (pattern1.test(tokens[i].toString()) && i < tokens.length - 2) {
+                    tokens.splice(i, 2, tokens[i].toString() + tokens[i + 1].toString())
+                }
+                //обработка маркоровок типа "Т. 5" (том пятый)
+                if (tokens[i].toString() == 'Т' && tokens[i + 1].type == az.Tokens.NUMBER) {
+                    tokens.splice(i, 2, 'Том ' + tokens[i + 1].toString())
+                }
+            }
+
+            tokens.map((token) => {
+
+                if (az.Morph(token.toString())[0] != undefined)
                     wordsArray.push(az.Morph(token.toString())[0].normalize(true).word)
-                });
-                resolve(objToExtract.TITLE = wordsArray)//resolve (true)
+                else
+                    //обработка нечитаемых аббревиатур с числами (ваз-2107, Olimp-80)
+                    if (pattern2.test(token.toString())) {
+                        wordsArray.push(token.toString())
+                    }
             })
+            objToExtract.TITLE = wordsArray;
+            resolve(objToExtract)
+
         }
         catch (err) {
             reject(err)
         }
     })
 
+}
+
+/**
+ * 
+ * @param {array} recordsArray 
+ * @returns Promise: resolve массив, содержащий объекты формата:
+ * {
+ *  word: word,
+ *  count: 1,
+ *  recordsIds: [record.RECORD_ID]
+ * }
+ */
+
+function createInvertedIndexArray(recordsArray) {
+    return new Promise((resolve, reject) => {
+        try {
+            let index = new Array();
+            
+            recordsArray.map((record) => {
+                record.TITLE.map((word) => {
+                    let position = index.findIndex(obj => obj.word === word)
+                    if (position != -1) {
+                        index[position].count++;
+                        index[position].recordsIds.push(record.RECORD_ID);
+                    }
+                    else {
+                        index.push(
+                            {
+                                word: word,
+                                count: 1,
+                                recordsIds: [record.RECORD_ID]
+                            });
+                    }
+                })
+            })
+            resolve(index);
+        } catch (error) {
+            reject(error);
+        }
+    })
+
+}
+
+/**
+ * 
+ * @param {*} invertedIndex обратный индекс: массив, содержащий объекты формата (см выше)
+ * @param {*} recordsArrayLegnth количество документов в корпусе(длинна массива документов)
+ * @returns Promise: массив с объектами формата (см выше) + поле IDF
+ */
+
+function calcIDF(invertedIndex, recordsArrayLegnth) {
+    return new Promise((resolve, reject) => {
+        try {
+            for (let i = 0; i < invertedIndex.length; i++) {
+                let IDF = Math.log((recordsArrayLegnth - invertedIndex[i].recordsIds.length + 0.5) / (invertedIndex[i].recordsIds.length + 0.5));
+                if (IDF > 0)
+                    invertedIndex[i].IDF = IDF;
+                else
+                    invertedIndex.splice(i, 1)
+            };
+            resolve(invertedIndex);
+        } catch (error) {
+            reject(error);
+        }
+    })
 }

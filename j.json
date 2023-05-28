@@ -5,14 +5,40 @@
             "TITLE" : "Положение о службе лабораторного контроля Росавтодора",
             "PUBLISHERS" : "Информавтодор",
             "YEAR_OF_PUBLISHING" : "2002",
-            "AUTHORS" : "М-во трансп. Рос. Федерации, РОСАВТОДОР"
+            "AUTHORS" : "М-во трансп. Рос. Федерации, РОСАВТОДОР",
+            "NUM_OF_BOOKS" : 3
         },
         {
-            "RECORD_ID" : 82157,
-            "TITLE" : "Задачи механики сплошных сред со смешанными граничными условиями",
-            "PUBLISHERS" : "Наука",
-            "YEAR_OF_PUBLISHING" : "1986",
-            "AUTHORS" : "Александров В. М., Коваленко Е. В."
+            "RECORD_ID" : 82151,
+            "TITLE" : "Точка опоры",
+            "PUBLISHERS" : "Педагогика",
+            "YEAR_OF_PUBLISHING" : "1987",
+            "AUTHORS" : "Шаталов В. Ф.",
+            "NUM_OF_BOOKS" : 2
+        },{
+            "RECORD_ID" : 82152,
+            "TITLE" : "Точка приложения силы",
+            "PUBLISHERS" : "Педагогика",
+            "YEAR_OF_PUBLISHING" : "1987",
+            "AUTHORS" : "Шаталов В. Ф.",
+            "NUM_OF_BOOKS" : 2
+        },
+        {
+            "RECORD_ID" : 82154,
+            "TITLE" : "Древний Рим. История. Быт. Культура",
+            "PUBLISHERS" : "Моск. лицей",
+            "YEAR_OF_PUBLISHING" : "2000",
+            "AUTHORS" : "сост. Л. С. Ильинская",
+            "NUM_OF_BOOKS" : 3
+        }
+        ,
+        {
+            "RECORD_ID" : 82155,
+            "TITLE" : "Вавилон",
+            "PUBLISHERS" : "Моск. лицей",
+            "YEAR_OF_PUBLISHING" : "2000",
+            "AUTHORS" : "сост. Л. С. Ильинская",
+            "NUM_OF_BOOKS" : 3
         }
     ]
 }
