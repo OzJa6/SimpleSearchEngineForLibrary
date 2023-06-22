@@ -1,7 +1,48 @@
 extends ../../../views/layout.pug
 
 block scripts
-    script(src="/javascript/search.js", type='module')
+  script(src="/javascript/search.js", type='module')
+
+block stylesheets
+  link(rel='stylesheet', href='stylesheets/style.css')
 
 block content
-    lable HI SEarch!
+  form(action="/search", method="POST", id="search-form")
+    label(for="keywords") Ключевые слова:
+    textarea(id="keywords", value="пложения, росавтодор", name="keywords", rows="3", placeholder="Введите ключевые слова", required )
+
+    label(for="author") Автор:
+    input(type="text", id="author", name="author", placeholder="Введите автора")
+
+    label(for="year") Год издания:
+    input(type="number", id="year", name="year", min="1900", max="2023", )
+
+    button(type="submit") Поиск
+
+  div(id="search-results")
+
+  // Шаблон для отображения данных о книгах
+  template(id="book-template")
+    div(class="book")
+      h3(class="book-title")
+      p(class="book-info")
+        span(class="book-info-label") Автор:
+        span(class="book-info-value book-author")
+      p(class="book-info")
+        span(class="book-info-label") Год издания:
+        span(class="book-info-value book-year")
+      p(class="book-info")
+        span(class="book-info-label") Издательство:
+        span(class="book-info-value book-publisher")
+      p(class="book-info")
+        span(class="book-info-label") Количество книг:
+        span(class="book-info-value book-quantity")
+      p(class="book-info")
+        span(class="book-info-label") TF-IDF:
+        span(class="book-info-value book-tfidf")
+      p(class="book-info")
+        span(class="book-info-label") Редакционное расстояние:
+        span(class="book-info-value book-edit-distance")
+      p
+        button(class="book-action-button book-accept") Подходит
+        button(class="book-action-button book-reject") Не подходит

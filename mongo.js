@@ -2,7 +2,7 @@
 
 const { query } = require('express');
 const mongoDB = require('mongodb');
-const ObjectID = require('mongodb').ObjectID;
+const { ObjectId } = require('mongodb');
 
 const config = require('./config.json').mongoDB;
 
@@ -38,26 +38,26 @@ module.exports.add = (database, collection, document) => {
     })
 }
 
-module.exports.update = (database,collection,id, document) => {
+module.exports.update = (database, collection, id, document) => {
     return new Promise((resolve, reject) => {
         try {
             dbclient
-            .db(database)
-            .collection(collection)
-            .updateOne({_id: ObjectID(id)},{$set: {document}})
+                .db(database)
+                .collection(collection)
+                .updateOne({ _id: ObjectId(id) }, { $set: { document } })
         } catch (error) {
             reject(error)
         }
     })
 }
 
-module.exports.getById = (database, collection, id) => {
+module.exports.getById = (database, collection, ids) => {
     return new Promise((resolve, reject) => {
         try {
             dbclient
                 .db(database)
                 .collection(collection)
-                .find({ _id: ObjectID(id) })
+                .find({ _id: {$in: ids.map(((id) => {return new ObjectId(id)}))} })
                 .toArray((error, result) => {
                     if (error)
                         reject(error);
@@ -69,20 +69,37 @@ module.exports.getById = (database, collection, id) => {
     })
 }
 
-module.exports.getBuQuery = (database, collection, query) => {
+module.exports.getAll = (database, collection) => {
     return new Promise((resolve, reject) => {
         try {
             dbclient
                 .db(database)
                 .collection(collection)
-                .find(query)
-                .toArray((error, result) => {
-                    if (error)
-                        reject(error);
-                    resolve(result);
+                .find({})
+                .toArray(function (err, results) {
+                    if (err) {
+                        reject(err)
+                    }
+                    resolve(results);
                 })
-        } catch (error) {
-            reject(error);
+        }
+        catch (err) {
+            reject(err);
+        }
+    })
+}
+
+module.exports.getByQuery = (database, collection, query) => {
+    return new Promise((resolve, reject) => {
+        try {
+            resolve(dbclient
+                .db(database)
+                .collection(collection)
+                .find({ word: {$in: query} })
+                .toArray())
+        }
+        catch (err) {
+            reject(err);
         }
     })
 }
@@ -139,16 +156,32 @@ module.exports.removeByQuery = async (database, collection, query) => { // Уд�
 
 module.exports.closeMongoConnection = () => {
     return new Promise((resolve, reject) => {
-      if (dbClient === null) reject(new Error('No connection to Mongo'));
-      else {
-        dbClient.close()
-        .then(() => {
-          console.log('Connection to Mongo is closed');
-          resolve();
-        })
-        .catch(err =>{
-          reject(err);
-        });
-      }
+        if (dbClient === null) reject(new Error('No connection to Mongo'));
+        else {
+            dbClient.close()
+                .then(() => {
+                    console.log('Connection to Mongo is closed');
+                    resolve();
+                })
+                .catch(err => {
+                    reject(err);
+                });
+        }
     });
-  }
+}
+
+
+module.exports.getAll = (database, collection) => {
+    return new Promise((resolve, reject) => {
+        try {
+            resolve(dbclient
+                .db(database)
+                .collection(collection)
+                .find({})
+                .toArray())
+        }
+        catch (err) {
+            reject(err);
+        }
+    })
+}

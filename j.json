@@ -1,44 +1,25 @@
-{
-    "SELECT * FROM QUICKR_INFO qi WHERE RECORD_ID <= 100000": [
-        {
-            "RECORD_ID" : 0,
-            "TITLE" : "Положение о службе лабораторного контроля Росавтодора",
-            "PUBLISHERS" : "Информавтодор",
-            "YEAR_OF_PUBLISHING" : "2002",
-            "AUTHORS" : "М-во трансп. Рос. Федерации, РОСАВТОДОР",
-            "NUM_OF_BOOKS" : 3
-        },
-        {
-            "RECORD_ID" : 82151,
-            "TITLE" : "Точка опоры",
-            "PUBLISHERS" : "Педагогика",
-            "YEAR_OF_PUBLISHING" : "1987",
-            "AUTHORS" : "Шаталов В. Ф.",
-            "NUM_OF_BOOKS" : 2
-        },{
-            "RECORD_ID" : 82152,
-            "TITLE" : "Точка приложения силы",
-            "PUBLISHERS" : "Педагогика",
-            "YEAR_OF_PUBLISHING" : "1987",
-            "AUTHORS" : "Шаталов В. Ф.",
-            "NUM_OF_BOOKS" : 2
-        },
-        {
-            "RECORD_ID" : 82154,
-            "TITLE" : "Древний Рим. История. Быт. Культура",
-            "PUBLISHERS" : "Моск. лицей",
-            "YEAR_OF_PUBLISHING" : "2000",
-            "AUTHORS" : "сост. Л. С. Ильинская",
-            "NUM_OF_BOOKS" : 3
-        }
-        ,
-        {
-            "RECORD_ID" : 82155,
-            "TITLE" : "Вавилон",
-            "PUBLISHERS" : "Моск. лицей",
-            "YEAR_OF_PUBLISHING" : "2000",
-            "AUTHORS" : "сост. Л. С. Ильинская",
-            "NUM_OF_BOOKS" : 3
-        }
-    ]
-}
+[
+    {
+        "RECORD_ID": 85855,
+        "TITLE": "США: Организация управления заводами",
+        "PUBLISHERS": "Наука",
+        "YEAR_OF_PUBLISHING": "1975",
+        "AUTHORS": "Разумнова И. И.",
+        "NUM_OF_BOOKS": 2
+    },
+    {
+        "RECORD_ID": 85858,
+        "TITLE": "Жилые секции гибкой конструктивно-планировочной структуры",
+        "PUBLISHERS": "Бyдiвeльник",
+        "YEAR_OF_PUBLISHING": "1975",
+        "AUTHORS": "Вассерман Я. E.",
+        "NUM_OF_BOOKS": 3
+    },
+    {
+        "RECORD_ID": 85860,
+        "TITLE": "Антарктическая одиссея",
+        "PUBLISHERS": "Гидрометеоиздат",
+        "YEAR_OF_PUBLISHING": "1985",
+        "NUM_OF_BOOKS": 3
+    }
+]

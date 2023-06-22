@@ -6,6 +6,7 @@ const fs = require('fs');
 
 const searchModel = require('./searchModel');
 
+
 const pattern1 = /[А-Яа-я]{1,15}-$/
 const pattern2 = /[A-Za-zА-Яа-я]{1,15}-[0-9]{1,5}$/
 module.exports.getSearch = async (req, res, next) => {
@@ -19,14 +20,30 @@ module.exports.getSearch = async (req, res, next) => {
     }
 }
 
-module.exports.postSearch = async (req, res) => {
+module.exports.getUpload = async (req, res, next) => {
     try {
-        let array = await prepareRecords("QUICKR_INFO_202302171551.json", 200)
-        let invertedIndex = await createInvertedIndexArray(array)
-        let idf = await calcIDF(invertedIndex,array.length)
+        res.render('./search/views/uploadFile.pug', {
+            title: 'Поиск'
+        })
+    }
+    catch (err) {
+        next(err);
+    }
+}
 
-        
 
+module.exports.postCreateIndex = async (req, res) => {
+    try {
+        let recordsArray = await prepareRecords("QUICKR_INFO_202302171551.json");
+        let invertedIndex = await createInvertedIndexArray(recordsArray);
+        let idf = await calcIDF(invertedIndex, recordsArray.length);
+
+        recordsArray.map((obj) => {
+            searchModel.add('Records', obj);
+        });
+        idf.map((obj) => {
+            searchModel.add('InvertedIndex', obj);
+        });
         /**
          * TODO:
          * 1)записать в монгу каждый элемент массива как отдельный документ.
@@ -35,7 +52,6 @@ module.exports.postSearch = async (req, res) => {
          * 4)ранжирования ответа
          */
 
-        console.log(idf)
         res.status(200).json({ status: 'ok' });
     }
     catch (err) {
@@ -43,12 +59,84 @@ module.exports.postSearch = async (req, res) => {
         res.status(500).json({ status: 'bad' });
     }
 }
+//получить из монги документы со словами.
+//взять от них айдишники
+//сделать пересечение
+module.exports.postSearch = async (req, res, next) => {
+    try {
+        //console.log(req.body)
+        let query = await new Promise((resolve, reject) => {
+            try {
+                az.Morph.init(async () => {
+                    resolve(await extractWords(req.body, 'keywords'))
+                })
+            } catch (error) {
+                reject(error)
+            }
+        })
+        console.log(query)
+        //let results = await searchModel.getByQuery('InvertedIndex', query.keywords);
+        //console.log(await searchModel.getByQuery('InvertedIndex', query.keywords))
+        let books = [{
+            "RECORD_ID": 0,
+            "TITLE": "Положение о службе лабораторного контроля Росавтодора",
+            "PUBLISHERS": "Информавтодор",
+            "YEAR_OF_PUBLISHING": "2002",
+            "AUTHORS": "М-во трансп. Рос. Федерации, РОСАВТОДОР",
+            "NUM_OF_BOOKS": 3,
+            "tfidf": 0.56,
+            "editDistance": 3
+        }, {
+            "RECORD_ID": 94744,
+            "TITLE": "Человек. Его положение и призвание в современном мире",
+            "PUBLISHERS": "Мысль",
+            "YEAR_OF_PUBLISHING": "1986",
+            "AUTHORS": "Григорьян Б. Т.",
+            "NUM_OF_BOOKS": 1,
+            "tfidf": 0.21,
+            "editDistance": 2
+        }, {
+            "RECORD_ID": 85336,
+            "TITLE": " Вып. 6  \/\/Сборник руководящих документов Росавтодора и федеральных органов власти, имеющих отраслевое значение\/\/ Гос. служба дор. хоз-ва Минтранса Рос. Федерации (Росавтодор) 2000\/\/",
+            "PUBLISHERS": null,
+            "YEAR_OF_PUBLISHING": "2000",
+            "AUTHORS": null,
+            "NUM_OF_BOOKS": 1,
+            "tfidf": 0.17,
+            "editDistance": 1
+        }
+        ]
 
-async function d(path) {
-    let array = await prepareRecords(path)
-    let invertedIndex = await createInvertedIndexArray(array)
-    let idf = await calcIDF(invertedIndex,array.length)
+        const commonNumbers = getCommonNumbers(await searchModel.getByQuery('InvertedIndex', query.keywords));
+        //console.log(await searchModel.getById('Records',getCommonNumbers(await searchModel.getByQuery('InvertedIndex', query.keywords))));
+        res.status(200).json(books);
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ status: 'bad' });
+    }
+    //3)написать обработчик поискового запроса
+    //4)ранжирования ответа
 }
+
+function getCommonNumbers(data) {
+    let commonNumbers = [];
+
+    if (data.length > 0) {
+        commonNumbers = data[0].recordsIds.slice();
+
+        for (let i = 1; i < data.length; i++) {
+            commonNumbers = commonNumbers.filter(number => data[i].recordsIds.includes(number));
+        }
+    }
+
+    return commonNumbers;
+}
+
+/**
+ * 
+ * @param {string} path путь до json файла с записями
+ * @returns массив записей, описывающих книги
+ */
 
 async function readJson(path) {
     let fileContent = fs.readFileSync(path, 'utf-8')
@@ -61,14 +149,13 @@ function prepareRecords(path) {
         try {
             let chunkArray = await readJson(path);
             az.Morph.init(async () => {
-                const chunkArrayPromises = chunkArray.map((record) => extractWords(record))
+                const chunkArrayPromises = chunkArray.map((record) => extractWords(record, 'TITLE'))
                 const resolvedapromises = await Promise.all(chunkArrayPromises)
                 resolve(resolvedapromises);
             })
         } catch (error) {
             reject(error)
         }
-
     })
 }
 
@@ -78,12 +165,12 @@ function prepareRecords(path) {
  * @returns Promise: resolve нормализованный объект
  */
 
-function extractWords(objToExtract) {
+function extractWords(objToExtract, property) {
     return new Promise((resolve, reject) => {
         try {
             var wordsArray = new Array();
 
-            let tokens = az.Tokens(objToExtract.TITLE).done(['SPACE', 'PUNCT'], true)
+            let tokens = az.Tokens(objToExtract[property]).done(['SPACE', 'PUNCT'], true)
 
             for (let i = 0; i < tokens.length; i++) {
                 //обработка ошибок ввода типа "планово- экономический" вместо "планово-экономический"
@@ -106,7 +193,7 @@ function extractWords(objToExtract) {
                         wordsArray.push(token.toString())
                     }
             })
-            objToExtract.TITLE = wordsArray;
+            objToExtract[property] = wordsArray;
             resolve(objToExtract)
 
         }
@@ -132,13 +219,15 @@ function createInvertedIndexArray(recordsArray) {
     return new Promise((resolve, reject) => {
         try {
             let index = new Array();
-            
+
             recordsArray.map((record) => {
                 record.TITLE.map((word) => {
                     let position = index.findIndex(obj => obj.word === word)
                     if (position != -1) {
-                        index[position].count++;
-                        index[position].recordsIds.push(record.RECORD_ID);
+                        if (!index[position].recordsIds.includes(record.RECORD_ID)) {
+                            index[position].count++;
+                            index[position].recordsIds.push(record.RECORD_ID);
+                        }
                     }
                     else {
                         index.push(
