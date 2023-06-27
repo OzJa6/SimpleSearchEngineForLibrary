@@ -9,8 +9,8 @@ router.get('/', searchController.getSearch);
 
 router.get('/upload', searchController.getUpload);
 
-router.post('/', searchController.postSearch);
+//router.get('/createIndex', searchController.postCreateIndex);
 
-router.get('/createIndex', searchController.postCreateIndex);
+router.post('/', searchController.postSearch);
 
 module.exports = router;

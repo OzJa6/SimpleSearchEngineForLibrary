@@ -95,7 +95,7 @@ module.exports.getByQuery = (database, collection, query) => {
             resolve(dbclient
                 .db(database)
                 .collection(collection)
-                .find({ word: {$in: query} })
+                .find(query)
                 .toArray())
         }
         catch (err) {

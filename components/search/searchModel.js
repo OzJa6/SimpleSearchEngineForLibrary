@@ -11,12 +11,16 @@ module.exports.getById = async (collection, id) => {
     return await mongoDB.getById(config.mongoDB.databaseName, collection, id);
 }
 
-module.exports.getByQuery = async (collection, query) => {
-    return await mongoDB.getByQuery(config.mongoDB.databaseName, collection, query);
+module.exports.getIds = async (collection, query) => {
+    return await mongoDB.getByQuery(config.mongoDB.databaseName, collection, { word: {$in: query} });
 }
 
-module.exports.getAll = async (collection, query) => {
-    return await mongoDB.getAll(config.mongoDB.databaseName, collection, query)
+module.exports.getRecords = async (collection, query) => {
+    return await mongoDB.getByQuery(config.mongoDB.databaseName, collection, { RECORD_ID: {$in: query} });
+}
+
+module.exports.getAll = async (collection) => {
+    return await mongoDB.getAll(config.mongoDB.databaseName, collection)
 }
 
 module.exports.removeById = async (collection, id) => {

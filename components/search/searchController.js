@@ -9,6 +9,7 @@ const searchModel = require('./searchModel');
 
 const pattern1 = /[А-Яа-я]{1,15}-$/
 const pattern2 = /[A-Za-zА-Яа-я]{1,15}-[0-9]{1,5}$/
+
 module.exports.getSearch = async (req, res, next) => {
     try {
         res.render('./search/views/search.pug', {
@@ -30,27 +31,31 @@ module.exports.getUpload = async (req, res, next) => {
         next(err);
     }
 }
+/*
+todo: полностью переработать:
+        - проверка объектов на наличие всех нужных полей(заглавие, айдишник, автор, год издания)
+        - сначала встравка записей в бд:
+                1) проверить наличие такой записи(по айдишнику, но мб по всем полям)
+                2) если записи нет - вставить ее
+        - если запись есть в бд, но нет в файле - удалить из бд
+        - строим индекс:
+                1) если слово есть то вместо add - update
+                2) если слова нет в новом индексе, но есть в старом - удалить
+
+*/
 
 
 module.exports.postCreateIndex = async (req, res) => {
     try {
         let recordsArray = await prepareRecords("QUICKR_INFO_202302171551.json");
         let invertedIndex = await createInvertedIndexArray(recordsArray);
-        let idf = await calcIDF(invertedIndex, recordsArray.length);
 
         recordsArray.map((obj) => {
             searchModel.add('Records', obj);
         });
-        idf.map((obj) => {
+        invertedIndex.map((obj) => {
             searchModel.add('InvertedIndex', obj);
         });
-        /**
-         * TODO:
-         * 1)записать в монгу каждый элемент массива как отдельный документ.
-         * -----2)написать процедуру проверки айдишников записей если книга выведена из оборота.
-         * 3)написать обработчик поискового запроса
-         * 4)ранжирования ответа
-         */
 
         res.status(200).json({ status: 'ok' });
     }
@@ -59,104 +64,102 @@ module.exports.postCreateIndex = async (req, res) => {
         res.status(500).json({ status: 'bad' });
     }
 }
-//получить из монги документы со словами.
-//взять от них айдишники
-//сделать пересечение
+
 module.exports.postSearch = async (req, res, next) => {
     try {
-        //console.log(req.body)
         let query = await new Promise((resolve, reject) => {
             try {
                 az.Morph.init(async () => {
-                    resolve(await extractWords(req.body, 'keywords'))
+                    resolve(await extractWords(req.body, 'keywords'));
                 })
             } catch (error) {
-                reject(error)
+                reject(error);
             }
         })
-        console.log(query)
-        //let results = await searchModel.getByQuery('InvertedIndex', query.keywords);
-        //console.log(await searchModel.getByQuery('InvertedIndex', query.keywords))
-        let books = [{
-            "RECORD_ID": 0,
-            "TITLE": "Положение о службе лабораторного контроля Росавтодора",
-            "PUBLISHERS": "Информавтодор",
-            "YEAR_OF_PUBLISHING": "2002",
-            "AUTHORS": "М-во трансп. Рос. Федерации, РОСАВТОДОР",
-            "NUM_OF_BOOKS": 3,
-            "tfidf": 0.56,
-            "editDistance": 3
-        }, {
-            "RECORD_ID": 94744,
-            "TITLE": "Человек. Его положение и призвание в современном мире",
-            "PUBLISHERS": "Мысль",
-            "YEAR_OF_PUBLISHING": "1986",
-            "AUTHORS": "Григорьян Б. Т.",
-            "NUM_OF_BOOKS": 1,
-            "tfidf": 0.21,
-            "editDistance": 2
-        }, {
-            "RECORD_ID": 85336,
-            "TITLE": " Вып. 6  \/\/Сборник руководящих документов Росавтодора и федеральных органов власти, имеющих отраслевое значение\/\/ Гос. служба дор. хоз-ва Минтранса Рос. Федерации (Росавтодор) 2000\/\/",
-            "PUBLISHERS": null,
-            "YEAR_OF_PUBLISHING": "2000",
-            "AUTHORS": null,
-            "NUM_OF_BOOKS": 1,
-            "tfidf": 0.17,
-            "editDistance": 1
-        }
-        ]
 
-        const commonNumbers = getCommonNumbers(await searchModel.getByQuery('InvertedIndex', query.keywords));
-        //console.log(await searchModel.getById('Records',getCommonNumbers(await searchModel.getByQuery('InvertedIndex', query.keywords))));
-        res.status(200).json(books);
+        let recordsIds = await searchModel.getIds('InvertedIndex', query.keywords);
+        let data = formatingRecords(await searchModel.getRecords('Records', (await countAndSortIdsIncludes(recordsIds)).map(id => id.id)));
+        
+        res.status(200).json(await sortRecords(recordsIds,data));
     } catch (error) {
         console.log(error)
         res.status(500).json({ status: 'bad' });
     }
-    //3)написать обработчик поискового запроса
-    //4)ранжирования ответа
 }
 
-function getCommonNumbers(data) {
-    let commonNumbers = [];
+/**писать сложную сортировку с учетом положения ключевого слова в строке запроса и последовательности слов лень
+ * подсчитывает количество повторений id книги в выборке и сортирует полученный массив пар {id: кол-во} по убыванию количества
+ * @param {array} ids список id для каждого ключевого слова
+ * @returns массив объектов вида {id: количество повторений в выборке} отсортированный по убыванию количества повторений
+ */
+async function countAndSortIdsIncludes(ids) {
 
-    if (data.length > 0) {
-        commonNumbers = data[0].recordsIds.slice();
+    let fullIds = (ids.map((record) => { return record.recordsIds })).flat();
 
-        for (let i = 1; i < data.length; i++) {
-            commonNumbers = commonNumbers.filter(number => data[i].recordsIds.includes(number));
-        }
+    let names = {};
+    fullIds.forEach(item => {
+        names[item] = (names[item] || 0) + 1;
+    });
+
+    let recordsIdscount = [];
+    for (let id in names) {
+        recordsIdscount.push({ id: id, count: names[id] });
     }
 
-    return commonNumbers;
-}
+    recordsIdscount.sort((a, b) => {
+        if (a.count > b.count)
+            return -1;
+        if (a.count < b.count)
+            return 1;
+        return 0;
+    })
 
+    return recordsIdscount.map(id => { return { id: parseInt(id.id) } });
+}
 /**
- * 
+ * сортировка полученный записей в нужном порядке
+ * @param {array} ids массив idшников записей
+ * @param {array} data непосредственнос сами записи
+ * @returns отсортированный массив data
+ */
+function sortRecords(ids, data) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let orderArray = await countAndSortIdsIncludes(ids);
+            let orderObj = orderArray.reduce((a, c, i) => { a[c.id] = i; return a; }, {});
+            data.sort((l, r) => orderObj[l.RECORD_ID] - orderObj[r.RECORD_ID]);
+
+            resolve(data);
+        } catch (error) {
+            reject(error);
+        }
+    })
+}
+//todo перенести на уровень работы с бд
+/**
+ * возвращаем только нужные поля
+ * @param {array} recordsArray массив записей
+ * @returns массив с элементами содержащими только нужные поля
+ */
+function formatingRecords(recordsArray) {
+    return recordsArray.map((record) => {
+        return {
+            RECORD_ID: record.RECORD_ID,
+            NUM_OF_BOOKS: record.NUM_OF_BOOKS,
+            WEB_FACE_OF_BOOK: record.WEB_FACE_OF_BOOK
+        }
+    })
+}
+//todo добавить загрузчик на сайт
+/**
+ * загрузка записей из файла
  * @param {string} path путь до json файла с записями
  * @returns массив записей, описывающих книги
  */
-
 async function readJson(path) {
     let fileContent = fs.readFileSync(path, 'utf-8')
     let json = await JSON.parse(fileContent)
     return Object.values(json)[0];
-}
-
-function prepareRecords(path) {
-    return new Promise(async (resolve, reject) => {
-        try {
-            let chunkArray = await readJson(path);
-            az.Morph.init(async () => {
-                const chunkArrayPromises = chunkArray.map((record) => extractWords(record, 'TITLE'))
-                const resolvedapromises = await Promise.all(chunkArrayPromises)
-                resolve(resolvedapromises);
-            })
-        } catch (error) {
-            reject(error)
-        }
-    })
 }
 
 /**
@@ -164,7 +167,6 @@ function prepareRecords(path) {
  * @param {object} objToExtract - объект с полями TITLE и AUTHORS, слова в которых будут разделены и нормализованы(приведены в начальную форму)
  * @returns Promise: resolve нормализованный объект
  */
-
 function extractWords(objToExtract, property) {
     return new Promise((resolve, reject) => {
         try {
@@ -205,7 +207,27 @@ function extractWords(objToExtract, property) {
 }
 
 /**
- * 
+ * форматирование записей для построения индекса
+ * @param {string} path путь до json файла с записями
+ * @returns массив распаршенных записей со словами в начальной форме
+ */
+function prepareRecords(path) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let chunkArray = await readJson(path);
+            az.Morph.init(async () => {
+                const chunkArrayPromises = chunkArray.map((record) => extractWords(record, 'TITLE'))
+                const resolvedapromises = await Promise.all(chunkArrayPromises)
+                resolve(resolvedapromises);
+            })
+        } catch (error) {
+            reject(error)
+        }
+    })
+}
+
+/**
+ * построение инвертированного индекса
  * @param {array} recordsArray 
  * @returns Promise: resolve массив, содержащий объекты формата:
  * {
@@ -245,28 +267,4 @@ function createInvertedIndexArray(recordsArray) {
         }
     })
 
-}
-
-/**
- * 
- * @param {*} invertedIndex обратный индекс: массив, содержащий объекты формата (см выше)
- * @param {*} recordsArrayLegnth количество документов в корпусе(длинна массива документов)
- * @returns Promise: массив с объектами формата (см выше) + поле IDF
- */
-
-function calcIDF(invertedIndex, recordsArrayLegnth) {
-    return new Promise((resolve, reject) => {
-        try {
-            for (let i = 0; i < invertedIndex.length; i++) {
-                let IDF = Math.log((recordsArrayLegnth - invertedIndex[i].recordsIds.length + 0.5) / (invertedIndex[i].recordsIds.length + 0.5));
-                if (IDF > 0)
-                    invertedIndex[i].IDF = IDF;
-                else
-                    invertedIndex.splice(i, 1)
-            };
-            resolve(invertedIndex);
-        } catch (error) {
-            reject(error);
-        }
-    })
 }
