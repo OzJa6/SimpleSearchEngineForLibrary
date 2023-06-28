@@ -23,8 +23,6 @@ app.use(function(req,res,next){
 })
 
 app.use(function(err,req,res, next) {
-
-
     console.error(err)
     res.locals.error = err.status || 500;
     res.locals.message = err.message || 'ServerError';

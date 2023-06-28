@@ -1,29 +1,16 @@
 'use strict'
 
 const az = require('az');
-const createError = require('http-errors');
 const fs = require('fs');
 
 const searchModel = require('./searchModel');
 
-
 const pattern1 = /[А-Яа-я]{1,15}-$/
 const pattern2 = /[A-Za-zА-Яа-я]{1,15}-[0-9]{1,5}$/
 
-module.exports.getSearch = async (req, res, next) => {
-    try {
-        res.render('./search/views/search.pug', {
-            title: 'Поиск'
-        })
-    }
-    catch (err) {
-        next(err);
-    }
-}
-
 module.exports.CreateIndex = async (req, res) => {
     try {
-        let recordsArray = await readJson("QUICKR_INFO_202302171551.json");    //await prepareRecords("QUICKR_INFO_202302171551.json");
+        let recordsArray = await readJson("QUICKR_INFO_202302171551.json");
 
         recordsArray.map((record) => {
             if (!('RECORD_ID' in record) || !('TITLE' in record) || !('AUTHORS' in record) ||
@@ -60,7 +47,7 @@ module.exports.CreateIndex = async (req, res) => {
 
         invertedIndex.forEach(async (element) => {
             let dbElement = databaseInvertedIndex.find(dbElement => dbElement.word == element.word)
-            if (dbElement) {
+            if (dbElement) {//если запись есть
                 await searchModel.update('InvertedIndex', dbElement['_id'], {
                     word: element.word,
                     count: element.count,
@@ -135,6 +122,7 @@ async function countAndSortIdsIncludes(ids) {
 
     return recordsIdscount.map(id => { return { id: parseInt(id.id) } });
 }
+
 /**
  * сортировка полученный записей в нужном порядке
  * @param {array} ids массив idшников записей
@@ -169,7 +157,7 @@ function formatingRecords(recordsArray) {
         }
     })
 }
-//todo добавить загрузчик на сайт
+
 /**
  * загрузка записей из файла
  * @param {string} path путь до json файла с записями
