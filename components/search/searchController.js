@@ -21,47 +21,66 @@ module.exports.getSearch = async (req, res, next) => {
     }
 }
 
-module.exports.getUpload = async (req, res, next) => {
+module.exports.CreateIndex = async (req, res) => {
     try {
-        res.render('./search/views/uploadFile.pug', {
-            title: 'Поиск'
+        let recordsArray = await readJson("QUICKR_INFO_202302171551.json");    //await prepareRecords("QUICKR_INFO_202302171551.json");
+
+        recordsArray.map((record) => {
+            if (!('RECORD_ID' in record) || !('TITLE' in record) || !('AUTHORS' in record) ||
+                !('YEAR_OF_PUBLISHING' in record) || !('WEB_FACE_OF_BOOK' in record) || !('NUM_OF_BOOKS' in record))
+                throw new SyntaxError(`Have no require fields in record ${record.RECORD_ID ? record.RECORD_ID : record.TITLE}`)
         })
-    }
-    catch (err) {
-        next(err);
-    }
-}
-/*
-todo: полностью переработать:
-        - проверка объектов на наличие всех нужных полей(заглавие, айдишник, автор, год издания)
-        - сначала встравка записей в бд:
-                1) проверить наличие такой записи(по айдишнику, но мб по всем полям)
-                2) если записи нет - вставить ее
-        - если запись есть в бд, но нет в файле - удалить из бд
-        - строим индекс:
-                1) если слово есть то вместо add - update
-                2) если слова нет в новом индексе, но есть в старом - удалить
 
-*/
+        let formattedRecords = await prepareRecords(recordsArray);
+        let databaseRecordsArray = await searchModel.getAll('Records');
 
+        formattedRecords.forEach(async (record) => {
+            let dbrecord = databaseRecordsArray.find((dbrecord) => dbrecord.RECORD_ID == record.RECORD_ID)
+            if (dbrecord) {//если запись есть
+                await searchModel.update('Records', dbrecord['_id'], {
+                    TITLE: record.TITLE,
+                    YEAR_OF_PUBLISHING: record.YEAR_OF_PUBLISHING,
+                    AUTHORS: record.AUTHORS,
+                    WEB_FACE_OF_BOOK: record.WEB_FACE_OF_BOOK,
+                    NUM_OF_BOOKS: record.NUM_OF_BOOKS
+                });
+            } else {//если в бд нет записи из файла
+                await searchModel.add('Records', record);
+            }
+            databaseRecordsArray.forEach(async (dbrecord) => {
+                if (!formattedRecords.find((record) => record.RECORD_ID == dbrecord.RECORD_ID)) {//если в файле нет записи из бд
+                    await searchModel.removeByQuery('Records', { RECORD_ID: dbrecord.RECORD_ID });
+                }
+            });
 
-module.exports.postCreateIndex = async (req, res) => {
-    try {
-        let recordsArray = await prepareRecords("QUICKR_INFO_202302171551.json");
-        let invertedIndex = await createInvertedIndexArray(recordsArray);
-
-        recordsArray.map((obj) => {
-            searchModel.add('Records', obj);
         });
-        invertedIndex.map((obj) => {
-            searchModel.add('InvertedIndex', obj);
-        });
+
+        let invertedIndex = await createInvertedIndexArray(formattedRecords);
+        let databaseInvertedIndex = await searchModel.getAll('InvertedIndex')
+
+        invertedIndex.forEach(async (element) => {
+            let dbElement = databaseInvertedIndex.find(dbElement => dbElement.word == element.word)
+            if (dbElement) {
+                await searchModel.update('InvertedIndex', dbElement['_id'], {
+                    word: element.word,
+                    count: element.count,
+                    recordsIds: element.recordsIds
+                });
+            } else {//если в бд нет записи из файла
+                await searchModel.add('InvertedIndex', element);
+            }
+            databaseInvertedIndex.forEach(async (dbElement) => {
+                if (!invertedIndex.find((element) => element.word == dbElement.word)) {//если в файле нет записи из бд
+                    await searchModel.removeByQuery('InvertedIndex', { word: dbElement.word });
+                }
+            });
+        })
 
         res.status(200).json({ status: 'ok' });
     }
-    catch (err) {
-        console.log(err);
-        res.status(500).json({ status: 'bad' });
+    catch (error) {
+        console.log(error);
+        res.status(500).json({ error });
     }
 }
 
@@ -79,11 +98,11 @@ module.exports.postSearch = async (req, res, next) => {
 
         let recordsIds = await searchModel.getIds('InvertedIndex', query.keywords);
         let data = formatingRecords(await searchModel.getRecords('Records', (await countAndSortIdsIncludes(recordsIds)).map(id => id.id)));
-        
-        res.status(200).json(await sortRecords(recordsIds,data));
+
+        res.status(200).json(await sortRecords(recordsIds, data));
     } catch (error) {
         console.log(error)
-        res.status(500).json({ status: 'bad' });
+        res.status(500).json({ error });
     }
 }
 
@@ -208,13 +227,12 @@ function extractWords(objToExtract, property) {
 
 /**
  * форматирование записей для построения индекса
- * @param {string} path путь до json файла с записями
+ * @param {array} chunkArray массив с записями
  * @returns массив распаршенных записей со словами в начальной форме
  */
-function prepareRecords(path) {
+function prepareRecords(chunkArray) {
     return new Promise(async (resolve, reject) => {
         try {
-            let chunkArray = await readJson(path);
             az.Morph.init(async () => {
                 const chunkArrayPromises = chunkArray.map((record) => extractWords(record, 'TITLE'))
                 const resolvedapromises = await Promise.all(chunkArrayPromises)

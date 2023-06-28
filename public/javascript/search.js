@@ -43,8 +43,6 @@ function displaySearchResults(books) {
     bookElement.querySelector('.book-year').textContent = book.YEAR_OF_PUBLISHING;
     bookElement.querySelector('.book-publisher').textContent = book.PUBLISHERS;
     bookElement.querySelector('.book-quantity').textContent = book.NUM_OF_BOOKS;
-    bookElement.querySelector('.book-tfidf').textContent = book.tfidf;
-    bookElement.querySelector('.book-edit-distance').textContent = book.editDistance;
 
     searchResults.appendChild(bookElement);
   });

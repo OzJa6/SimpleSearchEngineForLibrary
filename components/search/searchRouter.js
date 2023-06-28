@@ -7,9 +7,7 @@ const searchController = require('./searchController');
 
 router.get('/', searchController.getSearch);
 
-router.get('/upload', searchController.getUpload);
-
-//router.get('/createIndex', searchController.postCreateIndex);
+router.get('/createIndex', searchController.CreateIndex);
 
 router.post('/', searchController.postSearch);
 

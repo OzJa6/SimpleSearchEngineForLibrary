@@ -38,13 +38,15 @@ module.exports.add = (database, collection, document) => {
     })
 }
 
-module.exports.update = (database, collection, id, document) => {
+module.exports.update = (database, collection, id, query) => {
     return new Promise((resolve, reject) => {
         try {
             dbclient
                 .db(database)
                 .collection(collection)
-                .updateOne({ _id: ObjectId(id) }, { $set: { document } })
+                .updateOne({ _id: new ObjectId(id) }, {
+                    $set: query
+                })
         } catch (error) {
             reject(error)
         }
@@ -57,7 +59,7 @@ module.exports.getById = (database, collection, ids) => {
             dbclient
                 .db(database)
                 .collection(collection)
-                .find({ _id: {$in: ids.map(((id) => {return new ObjectId(id)}))} })
+                .find({ _id: { $in: ids.map(((id) => { return new ObjectId(id) })) } })
                 .toArray((error, result) => {
                     if (error)
                         reject(error);
